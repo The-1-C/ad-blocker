@@ -11,8 +11,9 @@ A simple Chrome extension that blocks ads using the Declarative Net Request API.
 
 ## Features
 
-- Blocks requests to common ad servers (doubleclick, googleadservices, etc.).
-- Uses Manifest V3.
+- **Secure & Private**: Uses the privacy-preserving `declarativeNetRequest` API. No history tracking.
+- **Lightweight**: Blocks requests to common ad servers (doubleclick, googleadservices, etc.).
+- **Safe Defaults**: Only blocks third-party ad resources.
 
 ## Customization
 

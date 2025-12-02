@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Simple Ad Blocker",
-  "version": "1.0",
-  "description": "A simple ad blocker Chrome extension.",
+  "version": "1.1",
+  "description": "A secure, simple ad blocker Chrome extension.",
   "permissions": [
     "declarativeNetRequest"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ad Blocker Settings"
+  },
   "declarative_net_request": {
     "rule_resources": [
       {
