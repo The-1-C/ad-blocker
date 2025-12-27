@@ -1,56 +1,144 @@
+#!/usr/bin/env python3
+"""
+Generate DNR rules from EasyList and other filter lists.
+Fetches updated lists and converts them to Chrome Declarative Net Request format.
+"""
 
 import json
+import requests
+from urllib.parse import urlparse
+from datetime import datetime
 
-start_id = 22
-domains = [
-    "ssl.google-analytics.com", "google-analytics.com", "sessions.bugsnag.com", "notify.bugsnag.com",
-    "events.reddit.com", "log.fc.yahoo.com", "api.bugsnag.com", "fwtracks.freshmarketer.com",
-    "cs.luckyorange.net", "geo.yahoo.com", "api.ad.xiaomi.com", "udcm.yahoo.com",
-    "realtime.luckyorange.com", "ads-api.twitter.com", "upload.luckyorange.net", "analytics.query.yahoo.com",
-    "smetrics.samsung.com", "freshmarketer.com", "samsung-com.112.2o7.net", "weather-analytics-events.apple.com",
-    "api-adservices.apple.com", "books-analytics-events.apple.com", "adc3-launch.adcolony.com", "events3alt.adcolony.com",
-    "ads30.adcolony.com", "api.luckyorange.com", "wd.adcolony.com", "notes-analytics-events.apple.com",
-    "auction.unityads.unity3d.com", "config.unityads.unity3d.com", "adserver.unityads.unity3d.com", "an.facebook.com",
-    "log.pinterest.com", "events.redditmedia.com", "ads.pinterest.com", "luckyorange.com",
-    "metrics.mzstatic.com", "analytics.google.com", "trk.pinterest.com", "click.googleanalytics.com",
-    "settings.luckyorange.net", "static.ads-twitter.com", "metrics.icloud.com", "analyticsengine.s3.amazonaws.com",
-    "pixel.facebook.com", "app.bugsnag.com", "browser.sentry-cdn.com", "analytics.s3.amazonaws.com",
-    "script.hotjar.com", "partnerads.ysm.yahoo.com", "analytics.pinterest.com", "o2.mouseflow.com",
-    "identify.hotjar.com", "surveys.hotjar.com", "claritybt.freshmarketer.com", "static.media.net",
-    "cdn-test.mouseflow.com", "ads.youtube.com", "iot-eu-logser.realme.com", "grs.hicloud.com",
-    "log.byteoversea.com", "business-api.tiktok.com", "analytics.tiktok.com", "bdapi-ads.realmemobile.com",
-    "metrics2.data.hicloud.com", "logbak.hicloud.com", "adx.ads.oppomobile.com", "data.ads.oppomobile.com",
-    "cdn.mouseflow.com", "ck.ads.oppomobile.com", "iadsdk.apple.com", "analytics-api.samsunghealthcn.com",
-    "analytics-sg.tiktok.com", "w1.luckyorange.com", "logservice.hicloud.com", "iot-logser.realme.com",
-    "sdkconfig.ad.intl.xiaomi.com", "analytics.pointdrive.linkedin.com", "metrics.data.hicloud.com", "logservice1.hicloud.com",
-    "media.net", "ads.linkedin.com", "sdkconfig.ad.xiaomi.com", "cdn.luckyorange.com",
-    "webview.unityads.unity3d.com", "adtago.s3.amazonaws.com", "appmetrica.yandex.ru", "advice-ads.s3.amazonaws.com",
-    "tracking.rus.miui.com", "bdapi-in-ads.realmemobile.com", "gemini.yahoo.com", "adm.hotjar.com",
-    "ads-sg.tiktok.com", "adsfs.oppomobile.com", "data.mistat.xiaomi.com", "stats.wp.com",
-    "app.getsentry.com", "tools.mouseflow.com", "samsungads.com", "insights.hotjar.com",
-    "ads.tiktok.com", "analytics.yahoo.com", "adtech.yahooinc.com", "metrika.yandex.ru",
-    "ads-api.tiktok.com", "adfstat.yandex.ru", "adfox.yandex.ru", "data.mistat.rus.xiaomi.com",
-    "data.mistat.india.xiaomi.com", "careers.hotjar.com", "mouseflow.com"
+# URLs for various filter lists
+FILTER_LISTS = {
+    'easylist': 'https://easylist.to/easylist/easylist.txt',
+    'easyprivacy': 'https://easylist.to/easylist/easyprivacy.txt',
+    'ublock_ads': 'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt',
+    'ublock_privacy': 'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt',
+}
+
+# Known trackers and ad networks (fallback)
+KNOWN_TRACKERS = [
+    'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
+    'analytics.google.com', 'google-analytics.com', 'pagead.googlesyndication.com',
+    'ads.facebook.com', 'connect.facebook.net', 'pixel.facebook.com',
+    'amazon-adsystem.com', 'media.net', 'ads.linkedin.com', 'ads.twitter.com',
+    'analytics.twitter.com', 'bat.bing.com', 'taboola.com', 'outbrain.com',
+    'criteo.com', 'scorecardresearch.com', 'hotjar.com', 'mouseflow.com',
+    'fullstory.com', 'segment.com', 'mixpanel.com', 'amplitude.com',
+    'drift.com', 'intercom.io', 'sentry.io', 'bugsnag.com',
+    'googletagmanager.com', 'adservice.google.com', 'advertising.apple.com',
+    'adcolony.com', 'unityads.unity3d.com', 'appodeal.com', 'openx.com',
+    'pubmatic.com', 'onetag.com', 'districtm.io', 'synacor.com',
+    'adn.inmobi.com', 'adform.net', 'bidswitch.net', 'c.amazon-adsystem.com'
 ]
 
-new_rules = []
-current_id = start_id
 
-for domain in domains:
-    rule = {
-        "id": current_id,
-        "priority": 1,
-        "action": {"type": "block"},
-        "condition": {
-            "urlFilter": domain,
-            "domainType": "thirdParty",
-            "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame"]
+def fetch_filter_list(url):
+    """Fetch filter list from URL."""
+    try:
+        print(f"Fetching {url}...")
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.text.split('\n')
+    except Exception as e:
+        print(f"Error fetching {url}: {e}")
+        return []
+
+
+def extract_domains_from_adblock(lines):
+    """Extract domains from Adblock filter syntax."""
+    domains = set()
+
+    for line in lines:
+        line = line.strip()
+        
+        # Skip comments and empty lines
+        if not line or line.startswith('!') or line.startswith('['):
+            continue
+
+        # Parse domain rules (simplified)
+        # Format: ||example.com^ or ||example.com^$script,image
+        if line.startswith('||'):
+            # Extract domain
+            domain = line[2:].split('^')[0].split('$')[0].strip()
+            if domain and '/' not in domain:  # Only pure domains, not paths
+                domains.add(domain)
+
+        # Format: ^domain  (with pipe syntax)
+        elif '||' in line:
+            parts = line.split('||')
+            for part in parts[1:]:
+                domain = part.split('^')[0].split('/')[0].split('$')[0].strip()
+                if domain:
+                    domains.add(domain)
+
+    return domains
+
+
+def generate_dnr_rules(domains, start_id=1):
+    """Convert domains to DNR rules."""
+    rules = []
+    rule_id = start_id
+
+    for domain in sorted(domains):
+        rule = {
+            "id": rule_id,
+            "priority": 1,
+            "action": {"type": "block"},
+            "condition": {
+                "urlFilter": domain,
+                "domainType": "thirdParty",
+                "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame"]
+            }
         }
-    }
-    new_rules.append(rule)
-    current_id += 1
+        rules.append(rule)
+        rule_id += 1
 
-# Print without outer brackets to easy copy-paste/file insertion
-json_str = json.dumps(new_rules, indent=2)
-# Remove the first '[' and last ']' to insert into existing array
-print(json_str[1:-1])
+    return rules
+
+
+def main():
+    print("Generating ad-blocking rules from filter lists...")
+    all_domains = set(KNOWN_TRACKERS)
+
+    # Fetch from filter lists
+    for name, url in FILTER_LISTS.items():
+        print(f"\nProcessing {name}...")
+        lines = fetch_filter_list(url)
+        domains = extract_domains_from_adblock(lines)
+        print(f"Found {len(domains)} domains from {name}")
+        all_domains.update(domains)
+
+    print(f"\nTotal unique domains: {len(all_domains)}")
+
+    # Split into standard and aggressive rulesets
+    # Standard: most common trackers
+    standard_domains = list(all_domains)[:100]
+    aggressive_domains = list(all_domains)
+
+    # Generate rules
+    standard_rules = generate_dnr_rules(standard_domains, start_id=1)
+    aggressive_rules = generate_dnr_rules(aggressive_domains, start_id=len(standard_rules) + 1)
+
+    # Save to files
+    with open('rules-standard.json', 'w') as f:
+        json.dump(standard_rules, f, indent=2)
+    print(f"Saved {len(standard_rules)} rules to rules-standard.json")
+
+    with open('rules-aggressive.json', 'w') as f:
+        json.dump(aggressive_rules, f, indent=2)
+    print(f"Saved {len(aggressive_rules)} rules to rules-aggressive.json")
+
+    # Log timestamp
+    with open('_metadata/rules_generated.txt', 'w') as f:
+        f.write(f"Rules generated: {datetime.now().isoformat()}\n")
+        f.write(f"Standard rules: {len(standard_rules)}\n")
+        f.write(f"Aggressive rules: {len(aggressive_rules)}\n")
+        f.write(f"Total unique domains: {len(all_domains)}\n")
+
+    print(f"\nGeneration complete! {datetime.now().isoformat()}")
+
+
+if __name__ == '__main__':
+    main()

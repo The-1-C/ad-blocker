@@ -1,0 +1,86 @@
+{
+  "extension": {
+    "name": "Simple Ad Blocker",
+    "version": "2.0",
+    "description": "Privacy-first ad blocker with cosmetic filtering and statistics"
+  },
+  "blocking": {
+    "levels": {
+      "standard": {
+        "description": "Fast blocking of common ad networks",
+        "rulesets": ["ruleset_standard"],
+        "rulesCount": 100,
+        "domains": [
+          "doubleclick.net",
+          "googleadservices.com",
+          "googlesyndication.com",
+          "amazon-adsystem.com",
+          "facebook.com",
+          "twitter.com",
+          "linkedin.com",
+          "taboola.com",
+          "outbrain.com",
+          "criteo.com"
+        ]
+      },
+      "aggressive": {
+        "description": "Thorough blocking including trackers and analytics",
+        "rulesets": ["ruleset_standard", "ruleset_aggressive"],
+        "rulesCount": 300,
+        "blocksTracking": true,
+        "blocksAnalytics": true
+      },
+      "custom": {
+        "description": "Use custom rules from rules.json",
+        "rulesets": ["ruleset_1"],
+        "rulesCount": "variable"
+      }
+    },
+    "cosmeticFiltering": {
+      "enabled": true,
+      "hiddenElements": [
+        ".ad",
+        ".ads",
+        "[id*='ad-']",
+        "[class*='advertisement']",
+        ".banner-ad",
+        "[data-ad-slot]"
+      ]
+    }
+  },
+  "features": {
+    "statistics": {
+      "enabled": true,
+      "trackingMetrics": ["today", "thisTab", "total"],
+      "dailyReset": "00:00:00",
+      "privacy": "No data sent anywhere"
+    },
+    "whitelist": {
+      "enabled": true,
+      "storage": "chrome.storage.local",
+      "perSite": true
+    },
+    "autoUpdate": {
+      "enabled": true,
+      "frequency": "daily",
+      "sources": [
+        "https://easylist.to/easylist/easylist.txt",
+        "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt"
+      ]
+    }
+  },
+  "permissions": {
+    "required": [
+      "declarativeNetRequest",
+      "declarativeNetRequestFeedback",
+      "storage",
+      "tabs"
+    ],
+    "host": ["<all_urls>"]
+  },
+  "performance": {
+    "memoryUsageMB": "5-10",
+    "cpuUsage": "Negligible",
+    "loadTime": "Instant"
+  }
+}

@@ -1,22 +1,48 @@
 {
   "manifest_version": 3,
   "name": "Simple Ad Blocker",
-  "version": "1.1",
-  "description": "A secure, simple ad blocker Chrome extension.",
+  "version": "2.0",
+  "description": "A secure, privacy-first ad blocker with whitelist, blocking levels, and stats.",
   "permissions": [
     "declarativeNetRequest",
-    "storage"
+    "declarativeNetRequestFeedback",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Ad Blocker Settings"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
   "declarative_net_request": {
     "rule_resources": [
       {
         "id": "ruleset_1",
         "enabled": true,
         "path": "rules.json"
+      },
+      {
+        "id": "ruleset_standard",
+        "enabled": true,
+        "path": "rules-standard.json"
+      },
+      {
+        "id": "ruleset_aggressive",
+        "enabled": false,
+        "path": "rules-aggressive.json"
       }
     ]
   }
